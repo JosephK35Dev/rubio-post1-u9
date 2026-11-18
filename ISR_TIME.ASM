@@ -16,12 +16,6 @@ start:
     int  21h
     mov  [old_isr], bx
     mov  [old_isr+2], es
-    push es
-    mov  ax, 40h
-    mov  es, ax
-    mov  ax, [es:6Ch]
-    mov  [last_tick], ax
-    pop  es
     push ds
     push cs
     pop  ds
@@ -84,12 +78,20 @@ mi_isr:
     mov  ax, 40h
     mov  es, ax
     mov  ax, [es:6Ch]
+    cmp  word [contador], 0
+    jne  .measure_interval
+    ; La primera pulsacion fija la referencia; no es un intervalo entre teclas.
+    mov  [last_tick], ax
+    mov  word [intervalos], 0
+    jmp  .store_interval
+.measure_interval:
     mov  bx, ax
     sub  bx, [last_tick]    ; modulo 65536, valido para intervalos menores a ~1 h
     mov  [last_tick], ax
     mov  si, [contador]
     shl  si, 1
     mov  [intervalos+si], bx
+.store_interval:
     inc  word [contador]
 .send_eoi:
     mov  al, 20h

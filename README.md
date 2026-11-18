@@ -7,16 +7,18 @@ El laboratorio tiene dos partes. La primera implementa lectura y escritura direc
 
 ## Entorno y compilación
 
-Los archivos se encuentran en `C:\DOSWork\U9POST` dentro de DOSBox. Para preparar el entorno se monta `C:\DOSWork`, se cambia a `U9POST` y se comprueba NASM con `NASM -v`. Antes de usar el NASM DOS extender puede ejecutarse `CWSDPMI`. Después, `BUILD.BAT` compila todas las fuentes como binarios planos `.COM` usando `NASM -f bin`.
+Las fuentes y binarios `.COM` se prepararon con NASM para DOSBox. La carpeta de trabajo fue `C:\DOSWork\U9POST`; DOSBox se configuró para montar `C:\DOSWork` y entrar allí. `ISR_CHAIN.ASM` se compiló bajo el nombre corto disponible en DOSBox y produjo `ISRCHA.COM`, que se entrega como `ISR_CHAIN.COM`.
+
+**Nota de procedimiento:** algunos símbolos de los comandos, como `:` y `\`, no se introducían de forma fiable con el teclado dentro de DOSBox. Para completar la ejecución se usaron scripts `.BAT` locales como ayuda de automatización. No son entregables y se excluyeron del repositorio. Las capturas conservan el nombre del script ejecutado para documentar cómo se obtuvieron los resultados.
 
 La documentación solicita `LPT1.ASM`, pero Windows reserva los nombres de dispositivo `LPT1` incluso cuando tienen extensión. Por eso, para que el repositorio y la carpeta anfitriona funcionen, la fuente se llama `LPT_1.ASM` y genera `LPT_1.COM`; implementa el mismo ejercicio del puerto paralelo.
 
 ## Parte 1 — Acceso directo a puertos
 
-- **TECL.ASM / TECL.COM:** consulta el registro de estado del 8042 en 64h hasta que OBF (bit 0) indica dato disponible, lee el scancode de 60h y lo muestra en hexadecimal. Es una espera sin límite y requiere una tecla.
+- **TECL.ASM / TECL.COM:** guarda y enmascara temporalmente IRQ1 para que el handler BIOS no consuma la tecla antes del polling; consulta OBF en 64h, lee el scancode de 60h, restaura la máscara original y lo muestra en hexadecimal. Es una espera sin límite y requiere una tecla.
 - **POLL_T.ASM / POLL_T.COM:** realiza la misma consulta con un límite MAX_RETRY. El valor inicial pequeño (5) permite comprobar rápidamente el mensaje de timeout; se puede aumentar para observar la ruta de dato recibido.
 - **LPT_1.ASM / LPT_1.COM:** comprueba BUSY# en 379h, escribe el byte 41h en 378h, genera un pulso de STROBE en 37Ah y sondea ACK#. Ambas esperas tienen límite para evitar que el emulador o un periférico ausente dejen el programa bloqueado. Se utiliza DX para los puertos 379h y 37Ah, ya que IN/OUT con puerto inmediato solo codifica una dirección de 8 bits.
-- **MULTI_ST.ASM / MULTI_ST.COM:** aísla OBF y BUSY# listo, combina las dos banderas con OR y examina por separado cuál activó la salida. Si LPT1 se reporta listo permanentemente, la espera termina aunque no haya una tecla; se debe describir ese comportamiento como resultado del emulador.
+- **MULTI_ST.ASM / MULTI_ST.COM:** enmascara IRQ1 durante la lectura de OBF para evitar que el handler BIOS consuma el dato, aísla OBF y BUSY# listo, combina las dos banderas con OR y examina por separado cuál activó la salida; luego restaura la máscara original. Si LPT1 se reporta listo permanentemente, la espera termina aunque no haya una tecla; se documenta ese comportamiento observado.
 
 ## Parte 2 — ISR y PIC 8259A
 
@@ -45,15 +47,16 @@ El polling es sencillo cuando se espera una respuesta durante un intervalo muy c
 
 ## Observaciones y resultados
 
-En la ejecución automatizada de DOSBox, `LPT_1.COM` terminó sin bloquearse y mostró `Dato A enviado; ACK recibido.`. Quedan pendientes las pruebas interactivas de lectura de scancode, las cinco pulsaciones en cada ISR y las capturas de pantalla de los diez checkpoints; no se atribuyen resultados a esas pruebas hasta observarlos en DOSBox.
+En DOSBox 0.74-3, `BUILD.BAT` compiló los ocho programas sin errores y mostró los nueve archivos `.COM` del directorio (incluido un binario previo con alias corto). `TECL.COM` respondió a la tecla A con el scancode `1E`; para que el polling lo detecte, el programa enmascara IRQ1 mientras espera y restaura el IMR previo después de leer el puerto 60h. `POLL_T.COM` mostró `Timeout: sin respuesta del dispositivo.` sin pulsación de tecla. `LPT_1.COM` terminó y mostró `Dato A enviado; ACK recibido.`. `MULTI_ST.COM` informó `LPT1 listo (BUSY#=1).`, por lo que en esa ejecución el OR salió debido al estado del puerto paralelo.
 
-## Evidencias pendientes
+`ISR_KB.COM` registró cinco teclas y terminó con `ISR restaurado. Fin.`. `MASK_KB.COM` mostró los mensajes de enmascaramiento y restauración. `ISR_CHAIN.COM`, compilado en DOSBox con el nombre `ISRCHA.COM` por la limitación de nombres largos de DOSBox, hizo eco de `abcde`, contó `0009` eventos IRQ1 y restauró el handler BIOS. `ISR_TIME.COM` usó la primera pulsación como referencia (0 ticks) y registró `47`, `39`, `74` y `62` ticks en las cuatro siguientes; la automatización añadió demoras variables entre pulsaciones, por lo que esos valores documentan la ejecución observada y no una calibración de intervalos exactos de un segundo.
 
-El taller solicita al menos dos capturas por checkpoint: 20 capturas en total. Se guardarán en `capturas/` con nombres `P1-CP1-a.png`, `P1-CP1-b.png` … `P1-CP5-b.png` y `P2-CP1-a.png` … `P2-CP5-b.png`. Cada imagen debe mostrar el comando o fuente y el resultado correspondiente del programa.
+## Evidencias
+
+`capturas/` contiene 20 imágenes con nombres descriptivos, dos para cada uno de los diez checkpoints. Se tomaron en DOSBox con `Ctrl+F5`; los nombres identifican parte, checkpoint y contenido. También conserva las copias numeradas que genera DOSBox durante las sesiones; las de nombre descriptivo son las seleccionadas para revisar.
 
 ## Estructura
 
 - Ocho fuentes `.ASM` y ocho binarios `.COM`.
-- `BUILD.BAT`: compila todos los ejercicios.
 - `docs/`: decisiones técnicas separadas para consulta.
 - `capturas/`: evidencias visuales requeridas.

@@ -2,12 +2,19 @@
 [BITS 16]
 [ORG 100h]
 start:
+    ; Evita que el handler BIOS consuma el dato antes del polling directo.
+    in   al, 21h
+    mov  [old_imr], al
+    or   al, 02h
+    out  21h, al
 .poll:
     in   al, 64h
     test al, 01h
     jz   .poll
     in   al, 60h
     mov  bl, al
+    mov  al, [old_imr]
+    out  21h, al         ; restaura la mascara original de IRQ1
     mov  al, bl
     shr  al, 4
     call hex_digit
@@ -32,3 +39,4 @@ hex_digit:
     mov  ah, 02h
     int  21h
     ret
+old_imr db 0

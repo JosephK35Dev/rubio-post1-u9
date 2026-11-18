@@ -10,3 +10,4 @@
 *.avi
 *.tmp
 *.log
+/capturas/dosbox_*.png
