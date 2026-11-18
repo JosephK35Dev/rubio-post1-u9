@@ -1,0 +1,12 @@
+/.tools/
+/dosbox-*.conf
+/dosbox-user-backup.conf
+/nasm.exe
+/cwsdpmi.exe
+/dos/
+/src/
+/bin/
+*.lst
+*.avi
+*.tmp
+*.log
